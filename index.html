@@ -63,27 +63,27 @@
         <h2>打刻用QRコード（常時表示）</h2>
         <canvas id="qr" width="280" height="280"></canvas>
         <div class="bar"><i id="qrbar"></i></div>
-        <p class="small">本番では、このQRに署名と有効期限（60秒）が付き、使い回しやスクリーンショットでは打刻できません。<br>このプロトタイプのQR模様はデモ用のダミーです。</p>
-      </div>
-      <div class="card grow">
-        <h2>スマホがないとき（PIN打刻）</h2>
-        <label>スタッフ</label>
-        <select id="pin-staff"></select>
-        <label>PIN（デモでは何でも4桁で打刻できます）</label>
-        <input id="pin-code" inputmode="numeric" maxlength="4" placeholder="••••">
-        <button class="bigbtn blue" onclick="pinClock()">このスタッフとして打刻（状態に応じて自動判定）</button>
-        <p class="small">本番ではPINはハッシュ化して保管し、連続ミスでロックがかかります。タブレット自体も店舗Wi-FiからのみQR発行が許可されます。<br>※ 店舗の回線が固定IPでない場合は、端末認証＋GPSのみで運用する設定にも切り替えられます（回線契約の確認後に決定）。</p>
+        <p class="small">本番では、このQRに署名と有効期限（60秒）が付き、使い回しやスクリーンショットでは打刻できません。<br>このプロトタイプのQR模様はデモ用のダミーです。タブレットは店舗Wi-FiからのみQR発行が許可されます。<br>※ 店舗の回線が固定IPでない場合は、端末認証＋GPSのみで運用する設定にも切り替えられます（回線契約の確認後に決定）。</p>
       </div>
     </div>
   </section>
 
   <!-- ===== STAFF ===== -->
   <section id="view-staff" class="view">
-    <div class="row">
+    <div class="card" id="login-card">
+      <h2>ログイン</h2>
+      <label>スタッフ</label>
+      <select id="login-sel"></select>
+      <label>PINコード（デモでは4桁なら何でもログインできます）</label>
+      <input id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+      <button class="bigbtn" onclick="doLogin()">PINでログイン</button>
+      <p class="small">本番ではPINはハッシュ化して保管し、連続ミスでロックがかかります。ログイン後に打刻画面が表示されます。</p>
+    </div>
+    <div class="row" id="staff-main" style="display:none">
       <div class="card grow">
         <h2>スマホで打刻</h2>
-        <label>スタッフ（デモ用に切り替えられます）</label>
-        <select id="staff-sel" onchange="renderStaff()"></select>
+        <p>ログイン中： <b id="login-name"></b>　<button class="chip" onclick="doLogout()">ログアウト</button></p>
+        <select id="staff-sel" style="display:none"></select>
         <p>現在の状態： <span id="staff-status" class="pill p-yet">未出勤</span></p>
         <label class="toggle"><input type="checkbox" id="outside"> 店舗の外から打刻する（不正打刻の再現）</label>
         <button class="bigbtn" id="btn-in" onclick="doClock('CLOCK_IN')">出勤</button>
@@ -270,13 +270,20 @@ function doClock(type){
     toast(LABEL[type]+" 打刻完了"); renderStaff();
   }, 950);
 }
-function pinClock(){
-  const sid=document.getElementById("pin-staff").value, pin=document.getElementById("pin-code").value;
+function doLogin(){
+  const sid=document.getElementById("login-sel").value, pin=document.getElementById("login-pin").value;
   if(!/^\d{4}$/.test(pin)){ toast("PINは4桁で入力してください"); return; }
-  const next=NEXT[state.status[sid]][0];
-  if(!next){ toast("本日の打刻は完了しています"); return; }
-  applyRecord(sid, next, "PIN打刻"); document.getElementById("pin-code").value="";
-  toast(STAFF.find(x=>x.id===sid).name+"："+LABEL[next]+"（PIN打刻）");
+  document.getElementById("staff-sel").value=sid;
+  document.getElementById("login-name").textContent=STAFF.find(x=>x.id===sid).name;
+  document.getElementById("login-card").style.display="none";
+  document.getElementById("staff-main").style.display="";
+  document.getElementById("login-pin").value="";
+  renderStaff(); toast("ログインしました");
+}
+function doLogout(){
+  document.getElementById("login-card").style.display="";
+  document.getElementById("staff-main").style.display="none";
+  toast("ログアウトしました");
 }
 function renderStaff(){
   const sid=curStaff(), st=state.status[sid];
@@ -338,8 +345,8 @@ function downloadCsv(){
 }
 
 // ---------- Init ----------
-const sel=document.getElementById("staff-sel"), psel=document.getElementById("pin-staff");
-STAFF.forEach(s=>{ sel.add(new Option(s.name, s.id)); psel.add(new Option(s.name, s.id)); });
+const sel=document.getElementById("staff-sel"), lsel=document.getElementById("login-sel");
+STAFF.forEach(s=>{ sel.add(new Option(s.name, s.id)); lsel.add(new Option(s.name, s.id)); });
 pushLine("<b>[打刻漏れ]</b> オリジナルカフェ: 高橋 ゆいさんがシフト開始から15分経過しても未打刻です。管理画面で確認してください。");
 pushLine("勤怠Botが有効になりました。打刻漏れ・申請・異常はこのトークに届きます。");
 renderStaff();
